@@ -1,4 +1,5 @@
 const User = require("./user_model");
+const Wallet = require("../wallet/wallet_model");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
@@ -30,8 +31,54 @@ function generateReferralCode(email) {
   return referralCode;
 }
 
+function generateWalletID(userID) {
+  userID = userID.slice(-4);
+  const randomString = crypto.randomBytes(4).toString("hex"); // Generate a random string
+  const walletID = `W-${userID}-${randomString}`;
+  return walletID;
+}
+
+const updateReferredWallet = async (userId , amount , remarks , type )  => {
+ try{
+  const findWalletDetail = await Wallet.findOne({
+    user_id: userId,
+  }).sort({
+    _id: -1,
+  });
+
+    let privious_balance = 0;
+    if (findWalletDetail) {
+      privious_balance = findWalletDetail?.new_balance;
+    }
+    let new_balance = 0.0;
+    new_balance = Number(
+      parseFloat(privious_balance) + parseFloat(amount)
+    ).toFixed(2);
+
+    const wallet_id = generateWalletID(userId);
+    const wallet = new Wallet({
+      wallet_id: wallet_id,
+      user_id: userId,
+      remark: remarks,
+      type: type,
+      privious_balance: privious_balance,
+      new_balance: new_balance,
+      add_balance: amount,
+    });
+    await wallet.save();
+
+    const updateUser = await User.findOneAndUpdate(
+      { _id: userId },
+      { $set: { wallet: new_balance } }
+    );
+ }catch(e){
+  console.log(e);
+ }
+  
+}
 
 const register = async (req, res) => {
+  let referralByUser = "";
   try {
     const { name, phone, email, password , referredByCode } = req.body;
     if (!phone || !email || !password)
@@ -56,7 +103,7 @@ const register = async (req, res) => {
         referredByCode == 0 ;
       }
       else{
-        let referralByUser = "";
+        
         let findUserByReferralCode = await User.findOne({ referralCode : referredByCode });
         if (!findUserByReferralCode)
           return res.json({
@@ -86,6 +133,17 @@ const register = async (req, res) => {
       referredByCode: referredByCode
     });
     // const findUser = await User.findOne({ email: lowercaseEmail });
+
+//******************* 
+
+ if(referredByCode != 0){
+  updateReferredWallet( String(user?.id ?? '') , process.env.REFERRAL_POINTS , "Referred" , 4)
+  updateReferredWallet( String(referralByUser?? '') , process.env.REFERRED_PONITS , "Referral" , 5)
+ }
+
+//************* */
+
+
     return res.json({
       status: 1,
       User_id: user?._id,
@@ -585,6 +643,8 @@ const getAccountInfo = async (req, res) => {
     });
   }
 };
+
+
 const softdeleteAccountInfo = async(req, res) => {
   try {
     const acctInfoId = req.params.id;
@@ -607,6 +667,45 @@ const softdeleteAccountInfo = async(req, res) => {
   }
 }
 
+const getRefrralDetail = async(req , res ) => {
+  try{
+    const userId = req.query.user_id;
+    console.log("userId : " , userId)
+    const isValidUserId = await User.findOne({_id: userId});
+
+    console.log("Ref : " , isValidUserId)
+
+    if(!isValidUserId){
+      return res.status(200).json({
+        status: 0,
+        message :  'Sorry! I can\'t find you ' 
+      })
+    }
+    console.log("Ref : " , isValidUserId)
+    res.status(200).json({
+      status: 1,
+      myreferralCode: isValidUserId?.referralCode,
+      referredByCode: isValidUserId?.referredByCode,
+      rewardUpto: process.env.REWARDUPTO,
+      messageToShare: `🚀 Exciting News! 🚀
+
+      Join the fun on our Build my 11  and unlock exclusive rewards worth up to ${process.env.REWARDUPTO}! 🎉✨
+      
+      📲 Simply download our app from the Play Store using the link below:
+      https://play.google.com/store/apps?hl=en_IN&gl=US
+      
+      🔑 Don't forget to use our referral code ${isValidUserId?.referralCode} during sign-up to claim your bonus! 💰💸
+      
+      Play , win and share the love! 🌟 #EarnWithUs #ExclusiveRewards`
+    })
+  }catch(error){
+    return res.status(500).json({
+      status: 0,
+      message: "Something went wrong!"
+    })
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -622,4 +721,5 @@ module.exports = {
   addAccountInfo,
   getAccountInfo,
   softdeleteAccountInfo,
+  getRefrralDetail
 };

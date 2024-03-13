@@ -312,6 +312,11 @@ const addBalance = async (req, res) => {
     });
     await wallet.save();
 
+    const updateUser = await User.findOneAndUpdate(
+      { _id: user_id },
+      { $set: { wallet: 5000 } }
+    );
+
     //************************************* */
 
     const response = await axios.post(

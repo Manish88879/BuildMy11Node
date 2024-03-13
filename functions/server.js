@@ -28,6 +28,10 @@ app.get('/' , (req , res) => {
 })
 app.use(`${commonPath}/users`, require("./features/user/user_router"));
 
+// Couponcode API 
+
+app.use(`${commonPath}/couponCode` , require("./features/CouponCode/CouponCodeRouter"));
+
 // payment gateway Api
 app.use(
   `${commonPath}/paymentGateway`,
