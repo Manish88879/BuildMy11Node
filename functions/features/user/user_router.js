@@ -6,6 +6,7 @@ const userController = require("./user_controller");
 router.post("/register", userController.register);
 router.post("/login", userController.login);
 router.post("/userDetails", userController.userDetails);
+
 // router.post("/socialRegister", userController.socialRegister);
 router.patch(
   "/updateProfilePic",
@@ -28,6 +29,8 @@ router.get("/getNotificationDetail/:id", userController.getNotificationDetail);
 router.post("/addAccountInfo", userController.addAccountInfo);
 
 router.get("/getAccountInfo", userController.getAccountInfo);
+router.get("/getRefrralDetail" , userController.getRefrralDetail);
 router.delete("/softdeleteAccountInfo/:id", userController.softdeleteAccountInfo);
 
 module.exports = router;
+  
