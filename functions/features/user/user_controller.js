@@ -492,8 +492,9 @@ const logout = async (req, res) => {
 };
 
 const socialSignup = async (req, res) => {
+  let referralByUser = "";
   try {
-    const { token, name, email, phone, password, profile_pic, type } = req.body;
+    const { token, name, email, phone, password, profile_pic, type , referredByCode  } = req.body;
     const findPhone = await User.findOne({ phone: phone });
     if (findPhone) {
       return res.status(400).json({
@@ -508,13 +509,32 @@ const socialSignup = async (req, res) => {
         message: "email already used",
       });
     }
-    if (!token && !name && !email && !phone) {
+
+    if (!token && !email && !phone) {
       return res.status(400).json({
         status: 0,
-        message: "token, name, email and phone are required",
+        message: "token, email and phone are required",
       });
     }
+
+    if(referredByCode == ""){
+      referredByCode == 0 ;
+    }
+    else{
+        
+      let findUserByReferralCode = await User.findOne({ referralCode : referredByCode });
+      if (!findUserByReferralCode)
+        return res.json({
+          status: 0,
+          message: "Please Enter Valid Referral code",
+        });
+        else{
+          referralByUser  =  findUserByReferralCode?._id
+        }
+    }
+
     const user_name = generateUsername(email);
+    const user_referral = generateReferralCode(email);
 
     const socialUser = new User({
       social_token: token,
@@ -527,9 +547,20 @@ const socialSignup = async (req, res) => {
       user_name: user_name,
       profile_pic: profile_pic,
       type: type || "social",
+      referralCode: user_referral,
+      referredByCode: referredByCode
     });
+
+    
+
     await socialUser.save();
     // console.log("socialUser", socialUser);
+    if(referredByCode != 0){
+      updateReferredWallet( String(socialUser?.id ?? '') , process.env.REFERRAL_POINTS , "Referred" , 4)
+      updateReferredWallet( String(referralByUser?? '') , process.env.REFERRED_PONITS , "Referral" , 5)
+     }
+    
+
 
     res.status(200).json({
       status: 1,
@@ -546,7 +577,8 @@ const socialSignin = async (req, res) => {
   try {
     token = req.body.token;
     const user = await User.findOne({ social_token: token });
-    if (user && user?.name && user?.email && user?.phone) {
+    console.log("user -= " , user)
+    if (user?.email ||  user?.phone) {
       return res.status(200).json({
         status: 1,
         id: user?._id,
